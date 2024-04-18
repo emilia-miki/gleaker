@@ -5,6 +5,8 @@ import gleam/string
 import gleam/int
 import gleam/erlang
 import poker
+import card
+import combination
 
 fn read_names() -> List(String) {
   io.println("Enter the names of the players separated by commas:")
@@ -32,81 +34,83 @@ fn read_names() -> List(String) {
   }
 }
 
-pub fn show_card(card: poker.Card) -> String {
+pub fn show_card(card: card.Card) -> String {
   case card {
-    poker.Card(poker.Ace, poker.Hearts) -> "🂱"
-    poker.Card(poker.Two, poker.Hearts) -> "🂲"
-    poker.Card(poker.Three, poker.Hearts) -> "🂳"
-    poker.Card(poker.Four, poker.Hearts) -> "🂴"
-    poker.Card(poker.Five, poker.Hearts) -> "🂵"
-    poker.Card(poker.Six, poker.Hearts) -> "🂶"
-    poker.Card(poker.Seven, poker.Hearts) -> "🂷"
-    poker.Card(poker.Eight, poker.Hearts) -> "🂸"
-    poker.Card(poker.Nine, poker.Hearts) -> "🂹"
-    poker.Card(poker.Ten, poker.Hearts) -> "🂺"
-    poker.Card(poker.Jack, poker.Hearts) -> "🂻"
-    poker.Card(poker.Queen, poker.Hearts) -> "🂽"
-    poker.Card(poker.King, poker.Hearts) -> "🂾"
-    poker.Card(poker.Ace, poker.Diamonds) -> "🃁"
-    poker.Card(poker.Two, poker.Diamonds) -> "🃂"
-    poker.Card(poker.Three, poker.Diamonds) -> "🃃"
-    poker.Card(poker.Four, poker.Diamonds) -> "🃄"
-    poker.Card(poker.Five, poker.Diamonds) -> "🃅"
-    poker.Card(poker.Six, poker.Diamonds) -> "🃆"
-    poker.Card(poker.Seven, poker.Diamonds) -> "🃇"
-    poker.Card(poker.Eight, poker.Diamonds) -> "🃈"
-    poker.Card(poker.Nine, poker.Diamonds) -> "🃉"
-    poker.Card(poker.Ten, poker.Diamonds) -> "🃊"
-    poker.Card(poker.Jack, poker.Diamonds) -> "🃋"
-    poker.Card(poker.Queen, poker.Diamonds) -> "🃍"
-    poker.Card(poker.King, poker.Diamonds) -> "🃎"
-    poker.Card(poker.Ace, poker.Spades) -> "🂡"
-    poker.Card(poker.Two, poker.Spades) -> "🂢"
-    poker.Card(poker.Three, poker.Spades) -> "🂣"
-    poker.Card(poker.Four, poker.Spades) -> "🂤"
-    poker.Card(poker.Five, poker.Spades) -> "🂥"
-    poker.Card(poker.Six, poker.Spades) -> "🂦"
-    poker.Card(poker.Seven, poker.Spades) -> "🂧"
-    poker.Card(poker.Eight, poker.Spades) -> "🂨"
-    poker.Card(poker.Nine, poker.Spades) -> "🂩"
-    poker.Card(poker.Ten, poker.Spades) -> "🂪"
-    poker.Card(poker.Jack, poker.Spades) -> "🂫"
-    poker.Card(poker.Queen, poker.Spades) -> "🂭"
-    poker.Card(poker.King, poker.Spades) -> "🂮"
-    poker.Card(poker.Ace, poker.Clubs) -> "🃑"
-    poker.Card(poker.Two, poker.Clubs) -> "🃒"
-    poker.Card(poker.Three, poker.Clubs) -> "🃓"
-    poker.Card(poker.Four, poker.Clubs) -> "🃔"
-    poker.Card(poker.Five, poker.Clubs) -> "🃕"
-    poker.Card(poker.Six, poker.Clubs) -> "🃖"
-    poker.Card(poker.Seven, poker.Clubs) -> "🃗"
-    poker.Card(poker.Eight, poker.Clubs) -> "🃘"
-    poker.Card(poker.Nine, poker.Clubs) -> "🃙"
-    poker.Card(poker.Ten, poker.Clubs) -> "🃚"
-    poker.Card(poker.Jack, poker.Clubs) -> "🃛"
-    poker.Card(poker.Queen, poker.Clubs) -> "🃝"
-    poker.Card(poker.King, poker.Clubs) -> "🃞"
+    card.Card(card.Ace, card.Hearts) -> "🂱"
+    card.Card(card.Two, card.Hearts) -> "🂲"
+    card.Card(card.Three, card.Hearts) -> "🂳"
+    card.Card(card.Four, card.Hearts) -> "🂴"
+    card.Card(card.Five, card.Hearts) -> "🂵"
+    card.Card(card.Six, card.Hearts) -> "🂶"
+    card.Card(card.Seven, card.Hearts) -> "🂷"
+    card.Card(card.Eight, card.Hearts) -> "🂸"
+    card.Card(card.Nine, card.Hearts) -> "🂹"
+    card.Card(card.Ten, card.Hearts) -> "🂺"
+    card.Card(card.Jack, card.Hearts) -> "🂻"
+    card.Card(card.Queen, card.Hearts) -> "🂽"
+    card.Card(card.King, card.Hearts) -> "🂾"
+    card.Card(card.Ace, card.Diamonds) -> "🃁"
+    card.Card(card.Two, card.Diamonds) -> "🃂"
+    card.Card(card.Three, card.Diamonds) -> "🃃"
+    card.Card(card.Four, card.Diamonds) -> "🃄"
+    card.Card(card.Five, card.Diamonds) -> "🃅"
+    card.Card(card.Six, card.Diamonds) -> "🃆"
+    card.Card(card.Seven, card.Diamonds) -> "🃇"
+    card.Card(card.Eight, card.Diamonds) -> "🃈"
+    card.Card(card.Nine, card.Diamonds) -> "🃉"
+    card.Card(card.Ten, card.Diamonds) -> "🃊"
+    card.Card(card.Jack, card.Diamonds) -> "🃋"
+    card.Card(card.Queen, card.Diamonds) -> "🃍"
+    card.Card(card.King, card.Diamonds) -> "🃎"
+    card.Card(card.Ace, card.Spades) -> "🂡"
+    card.Card(card.Two, card.Spades) -> "🂢"
+    card.Card(card.Three, card.Spades) -> "🂣"
+    card.Card(card.Four, card.Spades) -> "🂤"
+    card.Card(card.Five, card.Spades) -> "🂥"
+    card.Card(card.Six, card.Spades) -> "🂦"
+    card.Card(card.Seven, card.Spades) -> "🂧"
+    card.Card(card.Eight, card.Spades) -> "🂨"
+    card.Card(card.Nine, card.Spades) -> "🂩"
+    card.Card(card.Ten, card.Spades) -> "🂪"
+    card.Card(card.Jack, card.Spades) -> "🂫"
+    card.Card(card.Queen, card.Spades) -> "🂭"
+    card.Card(card.King, card.Spades) -> "🂮"
+    card.Card(card.Ace, card.Clubs) -> "🃑"
+    card.Card(card.Two, card.Clubs) -> "🃒"
+    card.Card(card.Three, card.Clubs) -> "🃓"
+    card.Card(card.Four, card.Clubs) -> "🃔"
+    card.Card(card.Five, card.Clubs) -> "🃕"
+    card.Card(card.Six, card.Clubs) -> "🃖"
+    card.Card(card.Seven, card.Clubs) -> "🃗"
+    card.Card(card.Eight, card.Clubs) -> "🃘"
+    card.Card(card.Nine, card.Clubs) -> "🃙"
+    card.Card(card.Ten, card.Clubs) -> "🃚"
+    card.Card(card.Jack, card.Clubs) -> "🃛"
+    card.Card(card.Queen, card.Clubs) -> "🃝"
+    card.Card(card.King, card.Clubs) -> "🃞"
   }
 }
 
-pub fn show_cards(cards: List(poker.Card)) {
+pub fn show_cards(cards: List(card.Card)) {
   let mapped = list.map(cards, show_card)
   let interspersed = list.intersperse(mapped, " ")
   string.concat(interspersed)
 }
 
-pub fn show_combination(combination: poker.Combination) -> String {
+pub fn show_combination(combination: combination.Combination) -> String {
   case combination {
-    poker.HighCard(cards) -> "HighCard(" <> show_cards(cards) <> ")"
-    poker.Pair(cards) -> "Pair(" <> show_cards(cards) <> ")"
-    poker.TwoPair(cards) -> "TwoPair(" <> show_cards(cards) <> ")"
-    poker.ThreeOfAKind(cards) -> "ThreeOfAKind(" <> show_cards(cards) <> ")"
-    poker.Straight(cards) -> "Straight(" <> show_cards(cards) <> ")"
-    poker.Flush(cards) -> "Flush(" <> show_cards(cards) <> ")"
-    poker.FullHouse(cards) -> "FullHouse(" <> show_cards(cards) <> ")"
-    poker.FourOfAKind(cards) -> "FourOfAKind(" <> show_cards(cards) <> ")"
-    poker.StraightFlush(cards) -> "StraightFlush(" <> show_cards(cards) <> ")"
-    poker.RoyalFlush(cards) -> "RoyalFlush(" <> show_cards(cards) <> ")"
+    combination.HighCard(cards) -> "HighCard(" <> show_cards(cards) <> ")"
+    combination.Pair(cards) -> "Pair(" <> show_cards(cards) <> ")"
+    combination.TwoPair(cards) -> "TwoPair(" <> show_cards(cards) <> ")"
+    combination.ThreeOfAKind(cards) ->
+      "ThreeOfAKind(" <> show_cards(cards) <> ")"
+    combination.Straight(cards) -> "Straight(" <> show_cards(cards) <> ")"
+    combination.Flush(cards) -> "Flush(" <> show_cards(cards) <> ")"
+    combination.FullHouse(cards) -> "FullHouse(" <> show_cards(cards) <> ")"
+    combination.FourOfAKind(cards) -> "FourOfAKind(" <> show_cards(cards) <> ")"
+    combination.StraightFlush(cards) ->
+      "StraightFlush(" <> show_cards(cards) <> ")"
+    combination.RoyalFlush(cards) -> "RoyalFlush(" <> show_cards(cards) <> ")"
   }
 }
 
@@ -212,7 +216,9 @@ fn format_play_descs(play_descs: List(poker.PlayDesc)) -> String {
   }
 }
 
-fn print_player_combinations(pcs: List(#(poker.Player, poker.Combination))) {
+fn print_player_combinations(
+  pcs: List(#(poker.Player, combination.Combination)),
+) {
   case pcs {
     [] -> Nil
     [#(pl, combination), ..rest] -> {

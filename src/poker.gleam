@@ -1,653 +1,9 @@
 import gleam/order
 import gleam/list
 import gleam/option
-import gleam/dict
 import gleam/int
-
-pub type Suit {
-  Hearts
-  Diamonds
-  Spades
-  Clubs
-}
-
-pub type Rank {
-  Two
-  Three
-  Four
-  Five
-  Six
-  Seven
-  Eight
-  Nine
-  Ten
-  Jack
-  Queen
-  King
-  Ace
-}
-
-fn compare_ranks(l: Rank, r: Rank) -> order.Order {
-  case l {
-    Ace ->
-      case r {
-        Ace -> order.Eq
-        _ -> order.Gt
-      }
-    King ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Eq
-        _ -> order.Gt
-      }
-    Queen ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Eq
-        _ -> order.Lt
-      }
-    Jack ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Eq
-        _ -> order.Gt
-      }
-    Ten ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Lt
-        Ten -> order.Eq
-        _ -> order.Gt
-      }
-    Nine ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Lt
-        Ten -> order.Lt
-        Nine -> order.Eq
-        _ -> order.Gt
-      }
-    Eight ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Lt
-        Ten -> order.Lt
-        Nine -> order.Lt
-        Eight -> order.Eq
-        _ -> order.Gt
-      }
-    Seven ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Lt
-        Ten -> order.Lt
-        Nine -> order.Lt
-        Eight -> order.Lt
-        Seven -> order.Eq
-        _ -> order.Gt
-      }
-    Six ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Lt
-        Ten -> order.Lt
-        Nine -> order.Lt
-        Eight -> order.Lt
-        Seven -> order.Lt
-        Six -> order.Eq
-        _ -> order.Gt
-      }
-    Five ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Lt
-        Ten -> order.Lt
-        Nine -> order.Lt
-        Eight -> order.Lt
-        Seven -> order.Lt
-        Six -> order.Lt
-        Five -> order.Eq
-        _ -> order.Gt
-      }
-    Four ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Lt
-        Ten -> order.Lt
-        Nine -> order.Lt
-        Eight -> order.Lt
-        Seven -> order.Lt
-        Six -> order.Lt
-        Five -> order.Lt
-        Four -> order.Eq
-        _ -> order.Gt
-      }
-    Three ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Lt
-        Ten -> order.Lt
-        Nine -> order.Lt
-        Eight -> order.Lt
-        Seven -> order.Lt
-        Six -> order.Lt
-        Five -> order.Lt
-        Four -> order.Lt
-        Three -> order.Eq
-        _ -> order.Gt
-      }
-    Two ->
-      case r {
-        Ace -> order.Lt
-        King -> order.Lt
-        Queen -> order.Lt
-        Jack -> order.Lt
-        Ten -> order.Lt
-        Nine -> order.Lt
-        Eight -> order.Lt
-        Seven -> order.Lt
-        Six -> order.Lt
-        Five -> order.Lt
-        Four -> order.Lt
-        Three -> order.Lt
-        Two -> order.Eq
-      }
-  }
-}
-
-fn are_ranks_successive_descending(l: Rank, r: Rank) -> Bool {
-  case l {
-    Ace ->
-      case r {
-        King -> True
-        _ -> False
-      }
-    Two ->
-      case r {
-        Ace -> True
-        _ -> False
-      }
-    Three ->
-      case r {
-        Two -> True
-        _ -> False
-      }
-    Four ->
-      case r {
-        Three -> True
-        _ -> False
-      }
-    Five ->
-      case r {
-        Four -> True
-        _ -> False
-      }
-    Six ->
-      case r {
-        Five -> True
-        _ -> False
-      }
-    Seven ->
-      case r {
-        Six -> True
-        _ -> False
-      }
-    Eight ->
-      case r {
-        Seven -> True
-        _ -> False
-      }
-    Nine ->
-      case r {
-        Eight -> True
-        _ -> False
-      }
-    Ten ->
-      case r {
-        Nine -> True
-        _ -> False
-      }
-    Jack ->
-      case r {
-        Ten -> True
-        _ -> False
-      }
-    Queen ->
-      case r {
-        Jack -> True
-        _ -> False
-      }
-    King ->
-      case r {
-        Queen -> True
-        _ -> False
-      }
-  }
-}
-
-pub type Card {
-  Card(rank: Rank, suit: Suit)
-}
-
-fn compare_cards(lcards: List(Card), rcards: List(Card)) -> order.Order {
-  case lcards {
-    [] -> order.Eq
-    [l, ..lrest] -> {
-      let assert [r, ..rrest] = rcards
-      case compare_ranks(l.rank, r.rank) {
-        order.Eq -> compare_cards(lrest, rrest)
-        ord -> ord
-      }
-    }
-  }
-}
-
-pub type Combination {
-  HighCard(cards: List(Card))
-  Pair(cards: List(Card))
-  TwoPair(cards: List(Card))
-  ThreeOfAKind(cards: List(Card))
-  Straight(cards: List(Card))
-  Flush(cards: List(Card))
-  FullHouse(cards: List(Card))
-  FourOfAKind(cards: List(Card))
-  StraightFlush(cards: List(Card))
-  RoyalFlush(cards: List(Card))
-}
-
-fn compare_combination(cl: Combination, cr: Combination) -> order.Order {
-  case cl {
-    RoyalFlush(_) ->
-      case cr {
-        RoyalFlush(_) -> order.Eq
-        _ -> order.Gt
-      }
-    StraightFlush(lcards) ->
-      case cr {
-        RoyalFlush(_) -> order.Lt
-        StraightFlush(rcards) -> {
-          let assert #([cl, ..], [cr, ..]) = #(lcards, rcards)
-          compare_ranks(cl.rank, cr.rank)
-        }
-        _ -> order.Gt
-      }
-    FourOfAKind(lcards) ->
-      case cr {
-        RoyalFlush(_) -> order.Lt
-        StraightFlush(_) -> order.Lt
-        FourOfAKind(rcards) -> {
-          let assert [cl, _, _, _, cl_] = lcards
-          let assert [cr, _, _, _, cr_] = rcards
-          case compare_ranks(cl.rank, cr.rank) {
-            order.Eq -> compare_ranks(cl_.rank, cr_.rank)
-            ord -> ord
-          }
-        }
-        _ -> order.Gt
-      }
-    FullHouse(lcards) ->
-      case cr {
-        RoyalFlush(_) -> order.Lt
-        StraightFlush(_) -> order.Lt
-        FourOfAKind(_) -> order.Lt
-        FullHouse(rcards) -> {
-          let assert [cl, _, _, cl_, _] = lcards
-          let assert [cr, _, _, cr_, _] = rcards
-          case compare_ranks(cl.rank, cr.rank) {
-            order.Eq -> compare_ranks(cl_.rank, cr_.rank)
-            ord -> ord
-          }
-        }
-        _ -> order.Gt
-      }
-    Flush(lcards) ->
-      case cr {
-        RoyalFlush(_) -> order.Lt
-        StraightFlush(_) -> order.Lt
-        FourOfAKind(_) -> order.Lt
-        FullHouse(_) -> order.Lt
-        Flush(rcards) -> compare_cards(lcards, rcards)
-        _ -> order.Gt
-      }
-    Straight(lcards) ->
-      case cr {
-        RoyalFlush(_) -> order.Lt
-        StraightFlush(_) -> order.Lt
-        FourOfAKind(_) -> order.Lt
-        FullHouse(_) -> order.Lt
-        Flush(_) -> order.Lt
-        Straight(rcards) -> {
-          let assert [l, ..] = lcards
-          let assert [r, ..] = rcards
-          compare_ranks(l.rank, r.rank)
-        }
-        _ -> order.Gt
-      }
-    ThreeOfAKind(lcards) ->
-      case cr {
-        RoyalFlush(_) -> order.Lt
-        StraightFlush(_) -> order.Lt
-        FourOfAKind(_) -> order.Lt
-        FullHouse(_) -> order.Lt
-        Flush(_) -> order.Lt
-        Straight(_) -> order.Lt
-        ThreeOfAKind(rcards) -> {
-          let assert [lthree, _, _, lc1, lc2] = lcards
-          let assert [rthree, _, _, rc1, rc2] = rcards
-          compare_cards([lthree, lc1, lc2], [rthree, rc1, rc2])
-        }
-        _ -> order.Gt
-      }
-    TwoPair(lcards) ->
-      case cr {
-        RoyalFlush(_) -> order.Lt
-        StraightFlush(_) -> order.Lt
-        FourOfAKind(_) -> order.Lt
-        FullHouse(_) -> order.Lt
-        Flush(_) -> order.Lt
-        Straight(_) -> order.Lt
-        ThreeOfAKind(_) -> order.Lt
-        TwoPair(rcards) -> {
-          let assert [lp1, _, lp2, _, lc] = lcards
-          let assert [rp1, _, rp2, _, rc] = rcards
-          compare_cards([lp1, lp2, lc], [rp1, rp2, rc])
-        }
-        _ -> order.Gt
-      }
-    Pair(lcards) ->
-      case cr {
-        RoyalFlush(_) -> order.Lt
-        StraightFlush(_) -> order.Lt
-        FourOfAKind(_) -> order.Lt
-        FullHouse(_) -> order.Lt
-        Flush(_) -> order.Lt
-        Straight(_) -> order.Lt
-        ThreeOfAKind(_) -> order.Lt
-        TwoPair(_) -> order.Lt
-        Pair(rcards) -> {
-          let assert [lp, _, ..lrest] = lcards
-          let assert [rp, _, ..rrest] = rcards
-          compare_cards([lp, ..lrest], [rp, ..rrest])
-        }
-        _ -> order.Gt
-      }
-    HighCard(lcards) ->
-      case cr {
-        RoyalFlush(_) -> order.Lt
-        StraightFlush(_) -> order.Lt
-        FourOfAKind(_) -> order.Lt
-        FullHouse(_) -> order.Lt
-        Flush(_) -> order.Lt
-        Straight(_) -> order.Lt
-        ThreeOfAKind(_) -> order.Lt
-        TwoPair(_) -> order.Lt
-        Pair(_) -> order.Lt
-        HighCard(rcards) -> compare_cards(lcards, rcards)
-      }
-  }
-}
-
-fn determine_combination(table: List(Card), hand: List(Card)) -> Combination {
-  let cards = list.append(table, hand)
-  let compare_func = fn(l: Card, r: Card) -> order.Order {
-    case compare_ranks(l.rank, r.rank) {
-      order.Lt -> order.Gt
-      order.Eq -> order.Eq
-      order.Gt -> order.Lt
-    }
-  }
-  let cards = list.sort(cards, compare_func)
-  // if royal flush is not checked, it will call check_straight_flush and so on
-  check_royal_flush(cards)
-}
-
-fn check_helper(
-  cards: List(Card),
-  check_straight: Bool,
-  check_flush: Bool,
-) -> option.Option(List(Card)) {
-  case list.length(cards) {
-    4 -> option.None
-    _ -> {
-      let truncated = list.take(cards, 5)
-      let assert Ok(rest) = list.rest(truncated)
-      let zipped = list.zip(truncated, rest)
-      let succ_pred = fn(tup: #(Card, Card)) -> Bool {
-        let #(l, r) = tup
-        are_ranks_successive_descending(l.rank, r.rank)
-      }
-      let flush_pred = fn(tup: #(Card, Card)) -> Bool {
-        let #(l, r) = tup
-        l.suit == r.suit
-      }
-      let pred = fn(tup: #(Card, Card)) -> Bool {
-        case check_straight {
-          True ->
-            case check_flush {
-              True -> succ_pred(tup) && flush_pred(tup)
-              False -> succ_pred(tup)
-            }
-          False ->
-            case check_flush {
-              True -> flush_pred(tup)
-              False -> panic
-            }
-        }
-      }
-      case list.all(zipped, pred) {
-        True -> option.Some(truncated)
-        False -> {
-          let assert Ok(rest) = list.rest(cards)
-          check_helper(rest, check_straight, check_flush)
-        }
-      }
-    }
-  }
-}
-
-fn check_royal_flush(cards: List(Card)) -> Combination {
-  case check_helper(cards, True, True) {
-    option.None -> check_four_of_a_kind(cards)
-    option.Some(cards_) -> {
-      let assert [first, ..] = cards_
-      case first.rank {
-        Ace -> RoyalFlush(cards_)
-        _ -> StraightFlush(cards_)
-      }
-    }
-  }
-}
-
-fn check_four_of_a_kind(cards: List(Card)) -> Combination {
-  let groups =
-    list.group(cards, fn(c) { c.rank })
-    |> dict.filter(fn(_, cards) { list.length(cards) == 4 })
-  case dict.size(groups) {
-    0 -> check_full_house(cards)
-    _ -> {
-      let assert [cards_] = dict.values(groups)
-      let assert [first, ..] = cards_
-      let assert [last, ..] = list.filter(cards, fn(c) { c != first })
-      FourOfAKind(list.append(cards_, [last]))
-    }
-  }
-}
-
-fn check_full_house(cards: List(Card)) -> Combination {
-  let groups = list.group(cards, fn(c) { c.rank })
-  let groups_ = dict.filter(groups, fn(_, cards) { list.length(cards) == 3 })
-  let three_cards_opt = case dict.size(groups_) {
-    0 -> option.None
-    1 -> {
-      let assert [xcards] = dict.values(groups_)
-      option.Some(xcards)
-    }
-    2 -> {
-      let assert [[x, ..] as xcards, [y, ..] as ycards] = dict.values(groups_)
-      case compare_ranks(x.rank, y.rank) {
-        order.Lt -> option.Some(ycards)
-        order.Gt -> option.Some(xcards)
-        order.Eq -> panic
-      }
-    }
-    _ -> panic
-  }
-  case three_cards_opt {
-    option.Some(three_cards) -> {
-      let assert [three_card, ..] = three_cards
-      let groups_ =
-        dict.filter(groups, fn(rank, cards) {
-          list.length(cards) >= 2 && rank != three_card.rank
-        })
-      case dict.size(groups_) {
-        0 -> check_flush(cards)
-        1 -> {
-          let assert [two_cards] = dict.values(groups_)
-          FullHouse(list.append(three_cards, two_cards))
-        }
-        2 -> {
-          let assert [[p1, ..] as pair1, [p2, ..] as pair2] =
-            dict.values(groups_)
-          let max_pair = case compare_ranks(p1.rank, p2.rank) {
-            order.Lt -> pair2
-            order.Gt -> pair1
-            order.Eq -> panic
-          }
-          FullHouse(list.append(three_cards, max_pair))
-        }
-        _ -> panic
-      }
-    }
-    option.None -> check_flush(cards)
-  }
-}
-
-fn check_flush(cards: List(Card)) -> Combination {
-  case check_helper(cards, False, True) {
-    option.Some(cards) -> Flush(cards)
-    option.None -> check_straight(cards)
-  }
-}
-
-fn check_straight(cards: List(Card)) -> Combination {
-  case check_helper(cards, True, False) {
-    option.Some(cards) -> Straight(cards)
-    option.None -> check_three_of_a_kind(cards)
-  }
-}
-
-fn check_three_of_a_kind(cards: List(Card)) -> Combination {
-  let groups =
-    list.group(cards, fn(c) { c.rank })
-    |> dict.filter(fn(_, cards) { list.length(cards) == 3 })
-  let three_cards_opt = case dict.size(groups) {
-    0 -> option.None
-    1 -> {
-      let assert [xcards] = dict.values(groups)
-      option.Some(xcards)
-    }
-    2 -> {
-      let assert [[x, ..] as xcards, [y, ..] as ycards] = dict.values(groups)
-      case compare_ranks(x.rank, y.rank) {
-        order.Lt -> option.Some(ycards)
-        order.Gt -> option.Some(xcards)
-        order.Eq -> panic
-      }
-    }
-    _ -> panic
-  }
-  case three_cards_opt {
-    option.Some(three_cards) -> {
-      let assert [three_card, ..] = three_cards
-      let rest =
-        list.filter(cards, fn(c) { c.rank != three_card.rank })
-        |> list.take(3)
-      ThreeOfAKind(list.append(three_cards, rest))
-    }
-    option.None -> check_two_pair(cards)
-  }
-}
-
-fn check_two_pair(cards: List(Card)) -> Combination {
-  let groups =
-    list.group(cards, fn(c) { c.rank })
-    |> dict.filter(fn(_, cards) { list.length(cards) == 2 })
-  let two_pairs_opt = case dict.size(groups) {
-    0 -> option.None
-    1 -> option.None
-    2 -> {
-      let assert [[x, ..] as xcards, [y, ..] as ycards] = dict.values(groups)
-      case compare_ranks(x.rank, y.rank) {
-        order.Lt -> option.Some(#(ycards, xcards))
-        order.Gt -> option.Some(#(xcards, ycards))
-        order.Eq -> panic
-      }
-    }
-    3 -> {
-      let compare_func = fn(ll: List(Card), lr: List(Card)) -> order.Order {
-        let assert #([x, ..], [y, ..]) = #(ll, lr)
-        case compare_ranks(x.rank, y.rank) {
-          order.Lt -> order.Gt
-          order.Gt -> order.Lt
-          order.Eq -> panic
-        }
-      }
-      let sorted = list.sort(dict.values(groups), compare_func)
-      let assert [x, y, _] = sorted
-      option.Some(#(x, y))
-    }
-    _ -> panic
-  }
-  case two_pairs_opt {
-    option.Some(tup) -> {
-      let assert #([x, ..] as xcards, [y, ..] as ycards) = tup
-      let assert [last, ..] =
-        list.filter(cards, fn(c) { c.rank != x.rank && c.rank != y.rank })
-      TwoPair(list.concat([xcards, ycards, [last]]))
-    }
-    option.None -> check_pair(cards)
-  }
-}
-
-fn check_pair(cards: List(Card)) -> Combination {
-  let grouped =
-    list.group(cards, fn(c) { c.rank })
-    |> dict.filter(fn(_, cards) { list.length(cards) == 2 })
-  case dict.size(grouped) {
-    0 -> check_high_card(cards)
-    1 -> {
-      let assert [[x, ..] as xcards] = dict.values(grouped)
-      let rest =
-        list.filter(cards, fn(c) { c.rank != x.rank })
-        |> list.take(3)
-      Pair(list.append(xcards, rest))
-    }
-    _ -> panic
-  }
-}
-
-fn check_high_card(cards: List(Card)) -> Combination {
-  HighCard(list.take(cards, 5))
-}
+import card
+import combination
 
 pub type Play {
   Fold
@@ -668,7 +24,7 @@ pub type PlayDesc {
 pub type Player {
   Player(
     name: String,
-    hand: List(Card),
+    hand: List(card.Card),
     bet: Int,
     bank: Int,
     has_played: Bool,
@@ -686,7 +42,7 @@ pub opaque type Callbacks {
     // defines how to get a play from the current player
     get_play: fn(Poker, Player, List(PlayDesc)) -> Play,
     // lets the user handle player combinations at game end
-    show_combinations: fn(List(#(Player, Combination))) -> Nil,
+    show_combinations: fn(List(#(Player, combination.Combination))) -> Nil,
     // lets the user display the winners at game end
     show_winner: fn(Poker, WinCondition, List(String)) -> Nil,
     // gets executed before the first game starts
@@ -710,7 +66,10 @@ pub opaque type Callbacks {
 
 pub fn new_callbacks(
   get_play get_play: fn(Poker, Player, List(PlayDesc)) -> Play,
-  show_combinations show_combinations: fn(List(#(Player, Combination))) -> Nil,
+  show_combinations show_combinations: fn(
+    List(#(Player, combination.Combination)),
+  ) ->
+    Nil,
   show_winner show_winner: fn(Poker, WinCondition, List(String)) -> Nil,
 ) {
   Callbacks(
@@ -762,8 +121,8 @@ pub fn set_round_end_callback(cbs: Callbacks, cb: fn(Poker) -> Nil) {
 
 pub type Poker {
   Poker(
-    deck: List(Card),
-    table: List(Card),
+    deck: List(card.Card),
+    table: List(card.Card),
     bet: Int,
     bank: Int,
     player_idx: Int,
@@ -772,26 +131,26 @@ pub type Poker {
   )
 }
 
-pub fn init_deck() -> List(Card) {
-  let suits = [Hearts, Diamonds, Spades, Clubs]
+pub fn init_deck() -> List(card.Card) {
+  let suits = [card.Hearts, card.Diamonds, card.Spades, card.Clubs]
   let ranks = [
-    Ace,
-    Two,
-    Three,
-    Four,
-    Five,
-    Six,
-    Seven,
-    Eight,
-    Nine,
-    Ten,
-    Jack,
-    Queen,
-    King,
+    card.Ace,
+    card.Two,
+    card.Three,
+    card.Four,
+    card.Five,
+    card.Six,
+    card.Seven,
+    card.Eight,
+    card.Nine,
+    card.Ten,
+    card.Jack,
+    card.Queen,
+    card.King,
   ]
   let mapped =
     list.map(ranks, fn(rank) {
-      list.map(suits, fn(suit) { Card(rank: rank, suit: suit) })
+      list.map(suits, fn(suit) { card.Card(rank: rank, suit: suit) })
     })
   list.concat(mapped)
 }
@@ -819,11 +178,14 @@ pub fn init_poker(names: List(String), callbacks: Callbacks) -> Poker {
   )
 }
 
-fn shuffle_deck(deck: List(Card)) -> List(Card) {
+fn shuffle_deck(deck: List(card.Card)) -> List(card.Card) {
   rec_shuffle_deck(deck, [])
 }
 
-fn rec_shuffle_deck(deck: List(Card), new_deck: List(Card)) -> List(Card) {
+fn rec_shuffle_deck(
+  deck: List(card.Card),
+  new_deck: List(card.Card),
+) -> List(card.Card) {
   case list.length(deck) {
     0 -> new_deck
     len -> {
@@ -1126,24 +488,20 @@ fn round_loop_helper(poker: Poker, first: Bool) {
           let players = list.filter(poker.players, fn(p) { !p.has_folded })
           let pcs =
             list.map(players, fn(p) {
-              #(p, determine_combination(poker.table, p.hand))
+              #(p, combination.determine(poker.table, p.hand))
             })
           let pcs =
             list.sort(pcs, fn(pcl, pcr) {
               let #(_, combl) = pcl
               let #(_, combr) = pcr
-              case compare_combination(combl, combr) {
-                order.Lt -> order.Gt
-                order.Eq -> order.Eq
-                order.Gt -> order.Lt
-              }
+              combination.compare(combr, combl)
             })
           poker.callbacks.show_combinations(pcs)
           let assert [#(_, max_comb), ..] = pcs
           let winners =
             list.filter(pcs, fn(pc) {
               let #(_, comb) = pc
-              compare_combination(comb, max_comb) == order.Eq
+              combination.compare(comb, max_comb) == order.Eq
             })
           let winners =
             list.map(winners, fn(pc) {
