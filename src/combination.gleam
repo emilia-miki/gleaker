@@ -1,9 +1,9 @@
-import gleam/order
-import gleam/option
-import gleam/list
+import card
 import gleam/dict
 import gleam/function
-import card
+import gleam/list
+import gleam/option
+import gleam/order
 
 pub type Combination {
   HighCard(cards: List(card.Card))
@@ -154,255 +154,187 @@ pub fn determine(
   table table: List(card.Card),
   hand hand: List(card.Card),
 ) -> Combination {
-  let cards = list.append(table, hand)
   let compare_func = function.flip(card.compare)
-  let cards = list.sort(cards, compare_func)
+  list.append(table, hand)
+  |> list.sort(compare_func)
   // if royal flush is not checked, it will call check_straight_flush and so on
-  check_royal_flush(cards)
-}
-
-fn choose(from cards: List(card.Card), n len: Int) -> List(List(card.Card)) {
-  case len {
-    0 -> [[]]
-    _ ->
-      case cards {
-        [] -> []
-        [x, ..xs] ->
-          list.append(
-            list.map(choose(from: xs, n: len - 1), fn(list) { [x, ..list] }),
-            choose(from: xs, n: len),
-          )
-      }
-  }
+  |> check_royal_flush()
 }
 
 fn is_straight(cards: List(card.Card)) -> Bool {
-  let assert Ok(rest) = list.rest(cards)
-  let zipped = list.zip(cards, rest)
   let pred = fn(tup: #(card.Card, card.Card)) -> Bool {
     let #(l, r) = tup
     card.are_successive_descending(l, r)
   }
-  list.all(zipped, pred)
+  let assert Ok(rest) = list.rest(cards)
+  list.zip(cards, rest)
+  |> list.all(pred)
 }
 
 fn is_flush(cards: List(card.Card)) -> Bool {
-  let assert Ok(rest) = list.rest(cards)
-  let zipped = list.zip(cards, rest)
   let pred = fn(tup: #(card.Card, card.Card)) -> Bool {
     let #(l, r) = tup
     l.suit == r.suit
   }
-  list.all(zipped, pred)
+  let assert Ok(rest) = list.rest(cards)
+  list.zip(cards, rest)
+  |> list.all(pred)
+}
+
+fn check_helper_straight(
+  cards: List(card.Card),
+  check_flush: Bool,
+) -> option.Option(List(card.Card)) {
+  let choices =
+    cards
+    |> list.combinations(5)
+    |> list.map(list.permutations)
+    |> list.concat
+    |> list.filter(is_straight)
+
+  case check_flush {
+    True -> list.filter(choices, is_flush)
+    False -> choices
+  }
+  |> list.sort(function.flip(card.compare_lists))
+  |> list.first
+  |> option.from_result
+}
+
+type Check {
+  StraightCheck
+  FlushCheck
+  StraightFlushCheck
 }
 
 fn check_helper(
   cards: List(card.Card),
-  check_straight check_straight: Bool,
-  check_flush check_flush: Bool,
+  check: Check,
 ) -> option.Option(List(card.Card)) {
-  case check_straight {
-    True -> {
-      let choices =
-        choose(cards, 5)
-        |> list.map(list.permutations)
-        |> list.concat
-        |> list.filter(is_straight)
-      let choices = case check_flush {
-        True -> list.filter(choices, is_flush)
-        False -> choices
-      }
-      let choices = list.sort(choices, function.flip(card.compare_lists))
-      case choices {
-        [] -> option.None
-        [x, ..] -> option.Some(x)
-      }
-    }
-    False -> {
-      let groups =
-        list.group(cards, fn(card) { card.suit })
-        |> dict.filter(fn(_, l) { list.length(l) >= 5 })
-        |> dict.values
-        |> list.map(fn(l) {
-          list.sort(l, function.flip(card.compare))
-          |> list.take(5)
-        })
-        |> list.sort(function.flip(card.compare_lists))
-      case groups {
-        [] -> option.None
-        [x, ..] -> option.Some(x)
-      }
-    }
+  case check {
+    StraightCheck -> check_helper_straight(cards, False)
+    StraightFlushCheck -> check_helper_straight(cards, True)
+    FlushCheck ->
+      list.group(cards, fn(card) { card.suit })
+      |> dict.filter(fn(_, l) { list.length(l) >= 5 })
+      |> dict.values
+      |> list.map(fn(l) {
+        list.sort(l, function.flip(card.compare))
+        |> list.take(5)
+      })
+      |> list.sort(function.flip(card.compare_lists))
+      |> list.first
+      |> option.from_result
   }
 }
 
 fn check_royal_flush(cards: List(card.Card)) -> Combination {
-  case check_helper(cards, True, True) {
-    option.None -> check_four_of_a_kind(cards)
-    option.Some(cards_) -> {
-      let assert [first, ..] = cards_
-      case first.rank {
-        card.Ace -> RoyalFlush(cards_)
-        _ -> StraightFlush(cards_)
-      }
+  cards
+  |> check_helper(StraightFlushCheck)
+  |> option.map(fn(cards) {
+    let assert [first, ..] = cards
+    case first.rank {
+      card.Ace -> RoyalFlush(cards)
+      _ -> StraightFlush(cards)
     }
-  }
+  })
+  |> option.lazy_unwrap(fn() { check_four_of_a_kind(cards) })
 }
 
 fn check_four_of_a_kind(cards: List(card.Card)) -> Combination {
-  let groups =
-    list.group(cards, fn(c) { c.rank })
-    |> dict.filter(fn(_, cards) { list.length(cards) == 4 })
-  case dict.size(groups) {
-    0 -> check_full_house(cards)
-    _ -> {
-      let assert [cards_] = dict.values(groups)
-      let assert [first, ..] = cards_
-      let assert [last, ..] = list.filter(cards, fn(c) { c != first })
-      FourOfAKind(list.append(cards_, [last]))
-    }
-  }
+  cards
+  |> get_tuple(4)
+  |> option.map(fn(tup) {
+    let #(four, rest) = tup
+    FourOfAKind(list.append(four, list.take(rest, 1)))
+  })
+  |> option.lazy_unwrap(fn() { check_full_house(cards) })
 }
 
 fn check_full_house(cards: List(card.Card)) -> Combination {
-  let groups = list.group(cards, fn(c) { c.rank })
-  let groups_ = dict.filter(groups, fn(_, cards) { list.length(cards) == 3 })
-  let three_cards_opt = case dict.size(groups_) {
-    0 -> option.None
-    1 -> {
-      let assert [xcards] = dict.values(groups_)
-      option.Some(xcards)
-    }
-    2 -> {
-      let assert [[x, ..] as xcards, [y, ..] as ycards] = dict.values(groups_)
-      case card.compare(x, y) {
-        order.Lt -> option.Some(ycards)
-        order.Gt -> option.Some(xcards)
-        order.Eq -> panic
-      }
-    }
-    _ -> panic
-  }
-  case three_cards_opt {
-    option.Some(three_cards) -> {
-      let assert [three_card, ..] = three_cards
-      let groups_ =
-        dict.filter(groups, fn(rank, cards) {
-          list.length(cards) >= 2 && rank != three_card.rank
-        })
-      case dict.size(groups_) {
-        0 -> check_flush(cards)
-        1 -> {
-          let assert [two_cards] = dict.values(groups_)
-          FullHouse(list.append(three_cards, two_cards))
-        }
-        2 -> {
-          let assert [[p1, ..] as pair1, [p2, ..] as pair2] =
-            dict.values(groups_)
-          let max_pair = case card.compare(p1, p2) {
-            order.Lt -> pair2
-            order.Gt -> pair1
-            order.Eq -> panic
-          }
-          FullHouse(list.append(three_cards, max_pair))
-        }
-        _ -> panic
-      }
-    }
-    option.None -> check_flush(cards)
-  }
+  cards
+  |> get_tuple(3)
+  |> option.then(fn(tup) {
+    let #(three, rest) = tup
+    rest
+    |> get_tuple(2)
+    |> option.map(fn(tup) {
+      let #(two, _) = tup
+      FullHouse(list.append(three, two))
+    })
+  })
+  |> option.lazy_unwrap(fn() { check_flush(cards) })
 }
 
 fn check_flush(cards: List(card.Card)) -> Combination {
-  case check_helper(cards, False, True) {
-    option.Some(cards) -> Flush(cards)
-    option.None -> check_straight(cards)
-  }
+  cards
+  |> check_helper(FlushCheck)
+  |> option.map(fn(cards) { Flush(cards) })
+  |> option.lazy_unwrap(fn() { check_straight(cards) })
 }
 
 fn check_straight(cards: List(card.Card)) -> Combination {
-  case check_helper(cards, True, False) {
-    option.Some(cards) -> Straight(cards)
-    option.None -> check_three_of_a_kind(cards)
-  }
+  cards
+  |> check_helper(StraightCheck)
+  |> option.map(fn(cards) { Straight(cards) })
+  |> option.lazy_unwrap(fn() { check_three_of_a_kind(cards) })
+}
+
+fn get_tuple(
+  cards: List(card.Card),
+  count: Int,
+) -> option.Option(#(List(card.Card), List(card.Card))) {
+  let #(result, rest) =
+    cards
+    |> list.chunk(by: fn(c) { c.rank })
+    |> list.fold(from: #(option.None, []), with: fn(acc, list) {
+      case acc {
+        #(option.None, rest) ->
+          case list.length(list) >= count {
+            True -> {
+              let #(group, rest_) = list.split(list, count)
+              #(option.Some(group), list.append(rest, rest_))
+            }
+            False -> #(option.None, list.append(rest, list))
+          }
+        #(option.Some(x), rest) -> #(option.Some(x), list.append(rest, list))
+      }
+    })
+  option.map(over: result, with: fn(result) { #(result, rest) })
 }
 
 fn check_three_of_a_kind(cards: List(card.Card)) -> Combination {
-  let three_groups =
-    list.group(cards, fn(c) { c.rank })
-    |> dict.filter(fn(_, cards) { list.length(cards) >= 3 })
-    |> dict.values
-    |> list.map(fn(l) { list.take(l, 3) })
-    |> list.sort(function.flip(card.compare_lists))
-  case three_groups {
-    [] -> check_two_pair(cards)
-    [three, ..] -> {
-      let assert [three_first, ..] = three
-      let three_rank = three_first.rank
-      let rest =
-        list.filter(cards, fn(c) { c.rank != three_rank })
-        |> list.take(2)
-      ThreeOfAKind(list.append(three, rest))
-    }
-  }
+  cards
+  |> get_tuple(3)
+  |> option.map(fn(tup) {
+    let #(group, rest) = tup
+    ThreeOfAKind(list.append(group, list.take(rest, 2)))
+  })
+  |> option.lazy_unwrap(fn() { check_two_pair(cards) })
 }
 
 fn check_two_pair(cards: List(card.Card)) -> Combination {
-  let groups =
-    list.group(cards, fn(c) { c.rank })
-    |> dict.filter(fn(_, cards) { list.length(cards) == 2 })
-  let two_pairs_opt = case dict.size(groups) {
-    0 -> option.None
-    1 -> option.None
-    2 -> {
-      let assert [[x, ..] as xcards, [y, ..] as ycards] = dict.values(groups)
-      case card.compare(x, y) {
-        order.Lt -> option.Some(#(ycards, xcards))
-        order.Gt -> option.Some(#(xcards, ycards))
-        order.Eq -> panic
-      }
-    }
-    3 -> {
-      let compare_func = fn(ll: List(card.Card), lr: List(card.Card)) -> order.Order {
-        let assert #([x, ..], [y, ..]) = #(ll, lr)
-        case card.compare(x, y) {
-          order.Lt -> order.Gt
-          order.Gt -> order.Lt
-          order.Eq -> panic
-        }
-      }
-      let sorted = list.sort(dict.values(groups), compare_func)
-      let assert [x, y, _] = sorted
-      option.Some(#(x, y))
-    }
-    _ -> panic
-  }
-  case two_pairs_opt {
-    option.Some(tup) -> {
-      let assert #([x, ..] as xcards, [y, ..] as ycards) = tup
-      let assert [last, ..] =
-        list.filter(cards, fn(c) { c.rank != x.rank && c.rank != y.rank })
-      TwoPair(list.concat([xcards, ycards, [last]]))
-    }
-    option.None -> check_pair(cards)
-  }
+  cards
+  |> get_tuple(2)
+  |> option.then(fn(tup) {
+    let #(first_pair, rest) = tup
+    option.map(get_tuple(rest, 2), fn(tup) {
+      let #(second_pair, rest) = tup
+      let assert [last, ..] = rest
+      TwoPair(list.concat([first_pair, second_pair, [last]]))
+    })
+  })
+  |> option.lazy_unwrap(fn() { check_pair(cards) })
 }
 
 fn check_pair(cards: List(card.Card)) -> Combination {
-  let grouped =
-    list.group(cards, fn(c) { c.rank })
-    |> dict.filter(fn(_, cards) { list.length(cards) == 2 })
-  case dict.size(grouped) {
-    0 -> check_high_card(cards)
-    1 -> {
-      let assert [[x, ..] as xcards] = dict.values(grouped)
-      let rest =
-        list.filter(cards, fn(c) { c.rank != x.rank })
-        |> list.take(3)
-      Pair(list.append(xcards, rest))
-    }
-    _ -> panic
-  }
+  cards
+  |> get_tuple(2)
+  |> option.map(fn(tup) {
+    let #(pair, rest) = tup
+    Pair(list.append(pair, list.take(rest, 3)))
+  })
+  |> option.lazy_unwrap(fn() { check_high_card(cards) })
 }
 
 fn check_high_card(cards: List(card.Card)) -> Combination {

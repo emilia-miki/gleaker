@@ -1,6 +1,6 @@
-import gleeunit/should
 import card
 import combination
+import gleeunit/should
 
 pub fn royal_flush_test() {
   let expected =
@@ -54,10 +54,10 @@ pub fn straight_flush_test() {
 pub fn four_of_a_kind_test() {
   let expected =
     combination.FourOfAKind([
-      card.Card(card.Eight, card.Clubs),
-      card.Card(card.Eight, card.Spades),
-      card.Card(card.Eight, card.Hearts),
       card.Card(card.Eight, card.Diamonds),
+      card.Card(card.Eight, card.Hearts),
+      card.Card(card.Eight, card.Spades),
+      card.Card(card.Eight, card.Clubs),
       card.Card(card.King, card.Spades),
     ])
 
@@ -80,11 +80,11 @@ pub fn four_of_a_kind_test() {
 pub fn full_house_test() {
   let expected =
     combination.FullHouse([
-      card.Card(card.Five, card.Spades),
-      card.Card(card.Five, card.Diamonds),
       card.Card(card.Five, card.Hearts),
-      card.Card(card.King, card.Spades),
+      card.Card(card.Five, card.Diamonds),
+      card.Card(card.Five, card.Spades),
       card.Card(card.King, card.Clubs),
+      card.Card(card.King, card.Spades),
     ])
 
   let table = [
@@ -158,9 +158,9 @@ pub fn straight_test() {
 pub fn three_of_a_kind_test() {
   let expected =
     combination.ThreeOfAKind([
-      card.Card(card.Three, card.Hearts),
-      card.Card(card.Three, card.Clubs),
       card.Card(card.Three, card.Diamonds),
+      card.Card(card.Three, card.Clubs),
+      card.Card(card.Three, card.Hearts),
       card.Card(card.King, card.Hearts),
       card.Card(card.Ten, card.Spades),
     ])
@@ -184,10 +184,10 @@ pub fn three_of_a_kind_test() {
 pub fn two_pair_test() {
   let expected =
     combination.TwoPair([
-      card.Card(card.Jack, card.Hearts),
       card.Card(card.Jack, card.Diamonds),
-      card.Card(card.Five, card.Clubs),
+      card.Card(card.Jack, card.Hearts),
       card.Card(card.Five, card.Spades),
+      card.Card(card.Five, card.Clubs),
       card.Card(card.Ten, card.Spades),
     ])
 
@@ -210,8 +210,8 @@ pub fn two_pair_test() {
 pub fn pair_test() {
   let expected =
     combination.Pair([
-      card.Card(card.Jack, card.Diamonds),
       card.Card(card.Jack, card.Hearts),
+      card.Card(card.Jack, card.Diamonds),
       card.Card(card.Ten, card.Hearts),
       card.Card(card.Nine, card.Hearts),
       card.Card(card.Eight, card.Clubs),

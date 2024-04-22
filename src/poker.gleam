@@ -1,9 +1,9 @@
-import gleam/order
-import gleam/list
-import gleam/option
-import gleam/int
 import card
 import combination
+import gleam/int
+import gleam/list
+import gleam/option
+import gleam/order
 
 pub type Play {
   Fold
@@ -148,11 +148,9 @@ pub fn init_deck() -> List(card.Card) {
     card.Queen,
     card.King,
   ]
-  let mapped =
-    list.map(ranks, fn(rank) {
-      list.map(suits, fn(suit) { card.Card(rank: rank, suit: suit) })
-    })
-  list.concat(mapped)
+  list.flat_map(ranks, fn(rank) {
+    list.map(suits, fn(suit) { card.Card(rank: rank, suit: suit) })
+  })
 }
 
 pub fn init_poker(names: List(String), callbacks: Callbacks) -> Poker {
@@ -190,8 +188,8 @@ fn rec_shuffle_deck(
     0 -> new_deck
     len -> {
       let idx = int.random(len)
-      let left = list.take(deck, idx)
-      let assert [card, ..right] = list.drop(deck, idx)
+      let #(left, right) = list.split(deck, idx)
+      let assert [card, ..right] = right
       let deck = list.append(left, right)
       let new_deck = [card, ..new_deck]
       rec_shuffle_deck(deck, new_deck)
@@ -211,27 +209,29 @@ fn next_round(poker: Poker) -> option.Option(Poker) {
         4 -> option.Some(1)
         _ -> option.None
       }
-      case num_cards_to_show {
-        option.Some(num) -> {
-          let shown = list.take(poker.deck, num)
-          let deck = list.drop(poker.deck, num)
-          let table = list.append(poker.table, shown)
-          let poker =
-            Poker(
-              ..poker,
-              deck: deck,
-              table: table,
-              bet: 0,
-              player_idx: 0,
-              players: players,
-            )
-          let poker = skip_passive(poker)
-          option.Some(poker)
-        }
-        option.None -> option.None
-      }
+      option.map(over: num_cards_to_show, with: fn(num) {
+        let #(shown, deck) = list.split(poker.deck, num)
+        let table = list.append(poker.table, shown)
+        Poker(
+          ..poker,
+          deck: deck,
+          table: table,
+          bet: 0,
+          player_idx: 0,
+          players: players,
+        )
+        |> skip_passive
+      })
     }
   }
+}
+
+fn take_small_blind(poker: Poker) -> option.Option(Poker) {
+  take_blind(poker, False)
+}
+
+fn take_big_blind(poker: Poker) -> option.Option(Poker) {
+  take_blind(poker, True)
 }
 
 fn take_blind(poker: Poker, big_blind: Bool) -> option.Option(Poker) {
@@ -239,8 +239,8 @@ fn take_blind(poker: Poker, big_blind: Bool) -> option.Option(Poker) {
     False -> #(5, 0)
     True -> #(10, 1)
   }
-  let left = list.take(poker.players, idx)
-  case list.drop(poker.players, idx) {
+  let #(left, right) = list.split(poker.players, idx)
+  case right {
     [] -> option.None
     [player, ..right] -> {
       case player.bank >= val {
@@ -251,8 +251,7 @@ fn take_blind(poker: Poker, big_blind: Bool) -> option.Option(Poker) {
             Poker(
               ..poker,
               bet: val,
-              bank: poker.bank
-              + val,
+              bank: poker.bank + val,
               players: list.concat([left, [player], right]),
             )
           option.Some(poker)
@@ -269,8 +268,10 @@ fn take_blind(poker: Poker, big_blind: Bool) -> option.Option(Poker) {
 
 fn next_game(poker: Poker) -> option.Option(Poker) {
   let hands = list.concat(list.map(poker.players, fn(p) { p.hand }))
-  let deck = list.append(poker.deck, hands)
-  let deck = shuffle_deck(deck)
+  let deck =
+    poker.deck
+    |> list.append(hands)
+    |> shuffle_deck
   let players =
     list.map(poker.players, fn(p) {
       Player(..p, hand: [], bet: 0, has_played: False, has_folded: False)
@@ -285,22 +286,17 @@ fn next_game(poker: Poker) -> option.Option(Poker) {
       player_idx: 0,
       players: players,
     )
-  case take_blind(poker, False) {
-    option.Some(poker) ->
-      case take_blind(poker, True) {
-        option.Some(poker) -> {
-          let num_players = list.length(poker.players)
-          let dealt = list.take(poker.deck, num_players * 2)
-          let deck = list.drop(poker.deck, num_players * 2)
-          let dealt = list.sized_chunk(dealt, 2)
-          let players =
-            list.map2(poker.players, dealt, fn(p, c) { Player(..p, hand: c) })
-          option.Some(Poker(..poker, deck: deck, players: players))
-        }
-        option.None -> option.None
-      }
-    option.None -> option.None
-  }
+  poker
+  |> take_small_blind
+  |> option.then(take_big_blind)
+  |> option.map(fn(poker) {
+    let num_players = list.length(poker.players)
+    let #(dealt, deck) = list.split(poker.deck, num_players * 2)
+    let dealt = list.sized_chunk(dealt, 2)
+    let players =
+      list.map2(poker.players, dealt, fn(p, c) { Player(..p, hand: c) })
+    Poker(..poker, deck: deck, players: players)
+  })
 }
 
 fn is_game_end_by_fold(poker: Poker) -> Bool {
@@ -353,8 +349,8 @@ fn advance_player(poker: Poker) -> Poker {
     False -> {
       let assert Ok(next_idx) =
         int.modulo(poker.player_idx + 1, list.length(poker.players))
-      let poker = Poker(..poker, player_idx: next_idx)
-      skip_passive(poker)
+      Poker(..poker, player_idx: next_idx)
+      |> skip_passive
     }
   }
 }
@@ -425,8 +421,8 @@ fn play_turn(poker: Poker, play: Play) -> Poker {
     }
   }
   let player = Player(..player, has_played: True)
-  let poker = Poker(..poker, players: list.concat([left, [player], right]))
-  advance_player(poker)
+  Poker(..poker, players: list.concat([left, [player], right]))
+  |> advance_player
 }
 
 fn give_bank(winners: List(String), poker: Poker) -> Poker {
@@ -452,8 +448,9 @@ fn turn_loop(poker: Poker) -> Poker {
         True -> Nil
         False -> panic as "invalid play received"
       }
-      let poker = play_turn(poker, play)
-      turn_loop(poker)
+      poker
+      |> play_turn(play)
+      |> turn_loop
     }
   }
 }
@@ -466,57 +463,51 @@ fn round_loop_helper(poker: Poker, first: Bool) {
   poker.callbacks.round_start(poker)
   let poker = turn_loop(poker)
   poker.callbacks.round_end(poker)
-  case next_round(poker) {
-    option.Some(poker) -> {
-      round_loop_helper(poker, False)
-    }
-    option.None ->
-      case is_game_end_by_fold(poker) {
-        True -> {
-          let assert [winner] =
-            list.filter(poker.players, fn(p) { !p.has_folded })
-          poker.callbacks.show_winner(poker, EveryoneFolded, [winner.name])
-          let poker = give_bank([winner.name], poker)
-          poker
-        }
-        False -> {
-          let to_show = 5 - list.length(poker.table)
-          let deck = list.drop(poker.deck, to_show)
-          let to_show = list.take(poker.deck, to_show)
-          let poker =
-            Poker(..poker, table: list.append(poker.table, to_show), deck: deck)
-          let players = list.filter(poker.players, fn(p) { !p.has_folded })
-          let pcs =
-            list.map(players, fn(p) {
-              #(p, combination.determine(poker.table, p.hand))
-            })
-          let pcs =
-            list.sort(pcs, fn(pcl, pcr) {
-              let #(_, combl) = pcl
-              let #(_, combr) = pcr
-              combination.compare(combr, combl)
-            })
-          poker.callbacks.show_combinations(pcs)
-          let assert [#(_, max_comb), ..] = pcs
-          let winners =
-            list.filter(pcs, fn(pc) {
-              let #(_, comb) = pc
-              combination.compare(comb, max_comb) == order.Eq
-            })
-          let winners =
-            list.map(winners, fn(pc) {
-              let #(pl, _) = pc
-              pl
-            })
-          poker.callbacks.show_winner(
-            poker,
-            LastRoundEnded,
-            list.map(winners, fn(w) { w.name }),
-          )
-          give_bank(list.map(winners, fn(w) { w.name }), poker)
-        }
+  poker
+  |> next_round
+  |> option.map(fn(poker) { round_loop_helper(poker, False) })
+  |> option.lazy_unwrap(fn() {
+    case is_game_end_by_fold(poker) {
+      True -> {
+        let assert [winner] =
+          list.filter(poker.players, fn(p) { !p.has_folded })
+        poker.callbacks.show_winner(poker, EveryoneFolded, [winner.name])
+        let poker = give_bank([winner.name], poker)
+        poker
       }
-  }
+      False -> {
+        let to_show = 5 - list.length(poker.table)
+        let #(to_show, deck) = list.split(poker.deck, to_show)
+        let poker =
+          Poker(..poker, table: list.append(poker.table, to_show), deck: deck)
+        let pcs =
+          list.filter(poker.players, fn(p) { !p.has_folded })
+          |> list.map(fn(p) { #(p, combination.determine(poker.table, p.hand)) })
+          |> list.sort(fn(pcl, pcr) {
+            let #(_, combl) = pcl
+            let #(_, combr) = pcr
+            combination.compare(combr, combl)
+          })
+        poker.callbacks.show_combinations(pcs)
+        let assert [#(_, max_comb), ..] = pcs
+        let winners =
+          list.filter(pcs, fn(pc) {
+            let #(_, comb) = pc
+            combination.compare(comb, max_comb) == order.Eq
+          })
+          |> list.map(fn(pc) {
+            let #(pl, _) = pc
+            pl
+          })
+        poker.callbacks.show_winner(
+          poker,
+          LastRoundEnded,
+          list.map(winners, fn(w) { w.name }),
+        )
+        give_bank(list.map(winners, fn(w) { w.name }), poker)
+      }
+    }
+  })
 }
 
 fn round_loop(poker: Poker) -> Poker {
@@ -524,19 +515,19 @@ fn round_loop(poker: Poker) -> Poker {
 }
 
 fn game_loop_helper(poker: Poker, first first: Bool) -> Nil {
-  case next_game(poker) {
-    option.Some(poker) -> {
-      case first {
-        True -> poker.callbacks.first_game_start(poker)
-        False -> poker.callbacks.next_game_start(poker)
-      }
-      poker.callbacks.game_start(poker)
-      let poker = round_loop(poker)
-      poker.callbacks.game_end(poker)
-      game_loop_helper(poker, False)
+  poker
+  |> next_game
+  |> option.map(fn(poker) {
+    case first {
+      True -> poker.callbacks.first_game_start(poker)
+      False -> poker.callbacks.next_game_start(poker)
     }
-    option.None -> Nil
-  }
+    poker.callbacks.game_start(poker)
+    let poker = round_loop(poker)
+    poker.callbacks.game_end(poker)
+    game_loop_helper(poker, False)
+  })
+  |> option.unwrap(Nil)
 }
 
 pub fn game_loop(poker: Poker) -> Nil {

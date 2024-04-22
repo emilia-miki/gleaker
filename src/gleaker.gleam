@@ -1,37 +1,38 @@
+import card
+import combination
+import gleam/erlang
+import gleam/int
 import gleam/io
 import gleam/list
 import gleam/option
+import gleam/result
 import gleam/string
-import gleam/int
-import gleam/erlang
 import poker
-import card
-import combination
 
 fn read_names() -> List(String) {
   io.println("Enter the names of the players separated by commas:")
-  case erlang.get_line("") {
-    Ok(line) -> {
-      let names =
-        string.split(line, ",")
-        |> list.map(string.trim)
-      case list.length(names) {
-        0 | 1 -> {
-          io.println("At least 2 players are required to play gleaker!")
-          read_names()
-        }
-        num if num < 24 -> names
-        _ -> {
-          io.println("Too many players, 52 cards are not enough!")
-          read_names()
-        }
+  erlang.get_line("")
+  |> result.map(fn(line) {
+    let names =
+      line
+      |> string.split(",")
+      |> list.map(string.trim)
+    case list.length(names) {
+      0 | 1 -> {
+        io.println("At least 2 players are required to play gleaker!")
+        read_names()
+      }
+      num if num < 24 -> names
+      _ -> {
+        io.println("Too many players, 52 cards are not enough!")
+        read_names()
       }
     }
-    Error(_) -> {
-      io.println("Invalid names!")
-      read_names()
-    }
-  }
+  })
+  |> result.lazy_unwrap(fn() {
+    io.println("Invalid names!")
+    read_names()
+  })
 }
 
 pub fn show_card(card: card.Card) -> String {
@@ -92,13 +93,14 @@ pub fn show_card(card: card.Card) -> String {
 }
 
 pub fn show_cards(cards: List(card.Card)) {
-  let mapped = list.map(cards, show_card)
-  let interspersed = list.intersperse(mapped, " ")
-  string.concat(interspersed)
+  cards
+  |> list.map(show_card)
+  |> list.intersperse(" ")
+  |> string.concat
 }
 
-pub fn show_combination(combination: combination.Combination) -> String {
-  case combination {
+pub fn show_combination(c: combination.Combination) -> String {
+  case c {
     combination.HighCard(cards) -> "HighCard(" <> show_cards(cards) <> ")"
     combination.Pair(cards) -> "Pair(" <> show_cards(cards) <> ")"
     combination.TwoPair(cards) -> "TwoPair(" <> show_cards(cards) <> ")"
@@ -153,43 +155,36 @@ fn read_play(
   io.println(
     "In this situation valid plays are: " <> format_play_descs(valid_plays),
   )
-  case erlang.get_line("Your play: ") {
-    Ok(line) -> {
-      let line = string.trim(line)
-      let play = case string.split(line, " ") {
-        ["Fold"] -> option.Some(poker.Fold)
-        ["Check"] -> option.Some(poker.Check)
-        ["Call"] -> option.Some(poker.Call)
-        ["Raise", num] -> {
-          case int.parse(num) {
-            Ok(num) -> option.Some(poker.Raise(num))
-            Error(_) -> option.None
-          }
-        }
-        ["AllIn"] -> option.Some(poker.AllIn)
-        _ -> option.None
-      }
-      let play = case play {
-        option.Some(play) ->
-          case poker.validate_play(play, valid_plays) {
-            True -> option.Some(play)
-            False -> option.None
-          }
-        option.None -> option.None
-      }
-      case play {
-        option.Some(play) -> play
-        option.None -> {
-          io.println("Invalid play!")
-          read_play(poker, player, valid_plays)
-        }
-      }
+  erlang.get_line("Your play: ")
+  |> option.from_result
+  |> option.then(fn(line) {
+    let line =
+      line
+      |> string.trim
+      |> string.split(" ")
+    case line {
+      ["Fold"] -> option.Some(poker.Fold)
+      ["Check"] -> option.Some(poker.Check)
+      ["Call"] -> option.Some(poker.Call)
+      ["Raise", num] ->
+        num
+        |> int.parse
+        |> result.map(fn(num) { poker.Raise(num) })
+        |> option.from_result
+      ["AllIn"] -> option.Some(poker.AllIn)
+      _ -> option.None
     }
-    Error(_) -> {
-      io.println("Invalid play!")
-      read_play(poker, player, valid_plays)
-    }
-  }
+    |> option.then(fn(play) {
+      case poker.validate_play(play, valid_plays) {
+        True -> option.Some(play)
+        False -> option.None
+      }
+    })
+  })
+  |> option.lazy_unwrap(fn() {
+    io.println("Invalid play!")
+    read_play(poker, player, valid_plays)
+  })
 }
 
 fn format_play_desc(play_desc: poker.PlayDesc) -> String {
@@ -234,11 +229,12 @@ fn print_winners(_: poker.Poker, wc: poker.WinCondition, pls: List(String)) {
     poker.EveryoneFolded -> " because everyone folded!"
     poker.LastRoundEnded -> "!"
   }
-  let suffix = case list.length(pls) {
-    1 -> " has won"
-    _ -> " have won"
-  }
-  let suffix = string.append(suffix, wc_str)
+  let suffix =
+    case list.length(pls) {
+      1 -> " has won"
+      _ -> " have won"
+    }
+    |> string.append(wc_str)
   io.println(format_winner_names(pls) <> suffix)
 }
 
@@ -253,7 +249,6 @@ fn format_winner_names(winners: List(String)) -> String {
 
 pub fn main() {
   io.println("Hello from gleaker!")
-  let names = read_names()
   let cbs =
     poker.new_callbacks(
       get_play: read_play,
@@ -263,6 +258,7 @@ pub fn main() {
     |> poker.set_next_game_start_callback(fn(_) { io.println("Next game!") })
     |> poker.set_next_round_start_callback(fn(_) { io.println("\nNext round!") })
     |> poker.set_game_end_callback(fn(_) { io.println("Game ended!\n") })
-  let poker = poker.init_poker(names, cbs)
-  poker.game_loop(poker)
+  read_names()
+  |> poker.init_poker(cbs)
+  |> poker.game_loop
 }
